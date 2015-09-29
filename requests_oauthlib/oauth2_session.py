@@ -245,7 +245,10 @@ class OAuth2Session(requests.Session):
         kwargs.update(self.auto_refresh_kwargs)
         body = self._client.prepare_refresh_body(body=body,
                 refresh_token=refresh_token, scope=self.scope, **kwargs)
+        
         log.debug('Prepared refresh token request body %s', body)
+        auth=self.auth
+        log.debug('Added auth', body)
         r = self.post(token_url, data=dict(urldecode(body)), auth=auth,
                       timeout=timeout, verify=verify)
         log.debug('Request to refresh token completed with status %s.',
@@ -284,7 +287,7 @@ class OAuth2Session(requests.Session):
                 if self.auto_refresh_url:
                     log.debug('Auto refresh is set, attempting to refresh at %s.',
                               self.auto_refresh_url)
-                    token = self.refresh_token(self.auto_refresh_url, **kwargs)
+                    token = self.refresh_token(self.auto_refresh_url, **kwargs,auth=self.auth)
                     if self.token_updater:
                         log.debug('Updating token to %s using %s.',
                                   token, self.token_updater)
