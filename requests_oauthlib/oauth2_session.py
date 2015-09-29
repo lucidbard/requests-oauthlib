@@ -247,8 +247,6 @@ class OAuth2Session(requests.Session):
                 refresh_token=refresh_token, scope=self.scope, **kwargs)
         
         log.debug('Prepared refresh token request body %s', body)
-        auth=self.auth
-        log.debug('Added auth', body)
         r = self.post(token_url, data=dict(urldecode(body)), auth=auth,
                       timeout=timeout, verify=verify)
         log.debug('Request to refresh token completed with status %s.',
