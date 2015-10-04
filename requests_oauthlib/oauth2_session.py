@@ -285,7 +285,7 @@ class OAuth2Session(requests.Session):
                 if self.auto_refresh_url:
                     log.debug('Auto refresh is set, attempting to refresh at %s.',
                               self.auto_refresh_url)
-                    token = self.refresh_token(self.auto_refresh_url,auth=self.auth,**kwargs)
+                    token = self.refresh_token(self.auto_refresh_url,auth=self.refresher.auth,**kwargs)
                     if self.token_updater:
                         log.debug('Updating token to %s using %s.',
                                   token, self.token_updater)
@@ -293,6 +293,8 @@ class OAuth2Session(requests.Session):
                         url, headers, data = self._client.add_token(url,
                                 http_method=method, body=data, headers=headers)
                     else:
+                        log.debug(self)
+                        log.debug(self.token_updater)
                         raise TokenUpdated(token)
                 else:
                     raise
