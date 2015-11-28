@@ -8,7 +8,7 @@ from oauthlib.oauth2 import TokenExpiredError, is_secure_transport
 import requests
 
 log = logging.getLogger(__name__)
-
+log.setLevel(logging.WARNING)
 
 class TokenUpdated(Warning):
     def __init__(self, token):
@@ -239,14 +239,17 @@ class OAuth2Session(requests.Session):
         # Need to nullify token to prevent it from being added to the request
         refresh_token = refresh_token or self.token.get('refresh_token')
         self.token = {}
-
+        log.debug("Setting redirect uri to " + self.refresher.redirect_uri)
+        kwargs['redirect_uri'] = self.refresher.redirect_uri
         log.debug('Adding auto refresh key word arguments %s.',
                   self.auto_refresh_kwargs)
         kwargs.update(self.auto_refresh_kwargs)
+
+        log.debug('Prepared refresh token request body pre- %s', body)
         body = self._client.prepare_refresh_body(body=body,
-                refresh_token=refresh_token, scope=self.scope, **kwargs)
-        
+                                                 refresh_token=refresh_token, scope=self.scope, **kwargs)
         log.debug('Prepared refresh token request body %s', body)
+        log.debug(auth)
         r = self.post(token_url, data=dict(urldecode(body)), auth=auth,
                       timeout=timeout, verify=verify)
         log.debug('Request to refresh token completed with status %s.',
@@ -260,7 +263,7 @@ class OAuth2Session(requests.Session):
             r = hook(r)
 
         self.token = self._client.parse_request_body_response(r.text, scope=self.scope)
-        if not 'refresh_token' in self.token:
+        if 'refresh_token' not in self.token:
             log.debug('No new refresh token given. Re-using old.')
             self.token['refresh_token'] = refresh_token
         return self.token
@@ -273,36 +276,26 @@ class OAuth2Session(requests.Session):
             log.debug('Invoking %d protected resource request hooks.',
                       len(self.compliance_hook['protected_request']))
             for hook in self.compliance_hook['protected_request']:
-                log.debug('Invoking hook %s.', hook)
                 url, headers, data = hook(url, headers, data)
 
-            log.debug('Adding token %s to request.', self.token)
             try:
                 url, headers, data = self._client.add_token(url,
                         http_method=method, body=data, headers=headers)
             # Attempt to retrieve and save new access token if expired
+
             except TokenExpiredError:
                 if self.auto_refresh_url:
-                    log.debug('Auto refresh is set, attempting to refresh at %s.',
-                              self.auto_refresh_url)
                     token = self.refresh_token(self.auto_refresh_url,auth=self.refresher.auth,**kwargs)
                     if self.token_updater:
-                        log.debug('Updating token to %s using %s.',
-                                  token, self.token_updater)
                         self.token_updater(token)
                         url, headers, data = self._client.add_token(url,
                                 http_method=method, body=data, headers=headers)
                     else:
-                        log.debug(self)
-                        log.debug(self.token_updater)
                         raise TokenUpdated(token)
                 else:
                     raise
 
-        log.debug('Requesting url %s using method %s.', url, method)
-        log.debug('Supplying headers %s and data %s', headers, data)
-        log.debug('Passing through key word arguments %s.', kwargs)
-        return super(OAuth2Session, self).request(method, url,
+        return super(OAuth2Session, self).request(method, url, 
                 headers=headers, data=data, **kwargs)
 
     def register_compliance_hook(self, hook_type, hook):
